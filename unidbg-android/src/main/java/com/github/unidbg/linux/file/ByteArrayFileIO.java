@@ -6,6 +6,7 @@ import com.github.unidbg.file.linux.BaseAndroidFileIO;
 import com.github.unidbg.file.linux.StatStructure;
 import com.github.unidbg.unix.IO;
 import com.github.unidbg.utils.Inspector;
+import com.github.unidbg.zz.ZZFixConfig;
 import com.sun.jna.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +94,17 @@ public class ByteArrayFileIO extends BaseAndroidFileIO {
         stat.st_blksize = emulator.getPageAlign();
         stat.st_blocks = ((bytes.length + emulator.getPageAlign() - 1) / emulator.getPageAlign());
         stat.st_ino = 1;
-        stat.setLastModification(System.currentTimeMillis());
+
+        //stat.setLastModification(System.currentTimeMillis());
+        //通过开关固定时间戳
+        if(ZZFixConfig.fix_file_timestamp) {
+            long timestamp = ZZFixConfig.curTime;
+            stat.setLastModification(timestamp);
+        } else {
+            stat.setLastModification(System.currentTimeMillis());
+        }
+
+
         stat.pack();
         return 0;
     }

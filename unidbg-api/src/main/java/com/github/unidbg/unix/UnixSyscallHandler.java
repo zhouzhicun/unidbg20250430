@@ -16,6 +16,7 @@ import com.github.unidbg.unix.struct.TimeVal32;
 import com.github.unidbg.unix.struct.TimeVal64;
 import com.github.unidbg.unix.struct.TimeZone;
 import com.github.unidbg.utils.Inspector;
+import com.github.unidbg.zz.ZZFixConfig;
 import com.sun.jna.Pointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,7 +201,16 @@ public abstract class UnixSyscallHandler<T extends NewFileIO> implements Syscall
             Inspector.inspect(before, "gettimeofday tz");
         }
 
-        long currentTimeMillis = currentTimeMillis();
+        //long currentTimeMillis = currentTimeMillis();
+        //通过开关固定时间戳
+        long currentTimeMillis = 0;
+        if(ZZFixConfig.fix_gettimeofday) {
+            currentTimeMillis = ZZFixConfig.curTime;
+        } else {
+            currentTimeMillis = currentTimeMillis();
+        }
+
+
         long tv_sec = currentTimeMillis / 1000;
         long tv_usec = (currentTimeMillis % 1000) * 1000;
         TimeVal32 timeVal = new TimeVal32(tv);
@@ -242,7 +252,17 @@ public abstract class UnixSyscallHandler<T extends NewFileIO> implements Syscall
             Inspector.inspect(before, "gettimeofday tz");
         }
 
-        long currentTimeMillis = currentTimeMillis();
+        //long currentTimeMillis = currentTimeMillis();
+        //通过开关固定时间戳
+        long currentTimeMillis = 0;
+        if(ZZFixConfig.fix_gettimeofday) {
+            currentTimeMillis = ZZFixConfig.curTime;
+        } else {
+            currentTimeMillis = currentTimeMillis();
+        }
+
+
+
         long tv_sec = currentTimeMillis / 1000;
         long tv_usec = (currentTimeMillis % 1000) * 1000;
         TimeVal64 timeVal = new TimeVal64(tv);
@@ -576,7 +596,16 @@ public abstract class UnixSyscallHandler<T extends NewFileIO> implements Syscall
     protected int getrandom(Pointer buf, int bufSize, int flags) {
         Random random = new Random();
         byte[] bytes = new byte[bufSize];
-        random.nextBytes(bytes);
+
+        //random.nextBytes(bytes);
+        //通过开关固定时间戳
+        if(ZZFixConfig.fix_getramdom) {
+            //啥也不做，默认返回全0的字节数组。
+        } else {
+            random.nextBytes(bytes);
+        }
+
+
         buf.write(0, bytes, 0, bytes.length);
         if (log.isDebugEnabled()) {
             log.debug(Inspector.inspectString(bytes, "getrandom buf=" + buf + ", bufSize=" + bufSize + ", flags=0x" + Integer.toHexString(flags)));

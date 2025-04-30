@@ -39,6 +39,8 @@ import com.github.unidbg.thread.ThreadContextSwitchException;
 import com.github.unidbg.unix.IO;
 import com.github.unidbg.unix.UnixEmulator;
 import com.github.unidbg.utils.Inspector;
+import com.github.unidbg.zz.ZZFixConfig;
+import com.github.unidbg.zz.ZZUnameConfig;
 import com.sun.jna.Pointer;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -1082,23 +1084,42 @@ public class ARM64SyscallHandler extends AndroidSyscallHandler {
 
         final int SYS_NMLN = 65;
 
+//        Pointer sysName = buf.share(0);
+//        sysName.setString(0, "Linux"); /* Operating system name (e.g., "Linux") */
+//
+//        Pointer nodeName = sysName.share(SYS_NMLN);
+//        nodeName.setString(0, "localhost"); /* Name within "some implementation-defined network" */
+//
+//        Pointer release = nodeName.share(SYS_NMLN);
+//        release.setString(0, "1.0.0-unidbg"); /* Operating system release (e.g., "2.6.28") */
+//
+//        Pointer version = release.share(SYS_NMLN);
+//        version.setString(0, "#1 SMP PREEMPT Thu Apr 19 14:36:58 CST 2018"); /* Operating system version */
+//
+//        Pointer machine = version.share(SYS_NMLN);
+//        machine.setString(0, "armv8l"); /* Hardware identifier */
+//
+//        Pointer domainName = machine.share(SYS_NMLN);
+//        domainName.setString(0, "localdomain"); /* NIS or YP domain name */
+
+
         Pointer sysName = buf.share(0);
-        sysName.setString(0, "Linux"); /* Operating system name (e.g., "Linux") */
+        sysName.setString(0, ZZUnameConfig.UnameValue.sysname); /* Operating system name (e.g., "Linux") */
 
         Pointer nodeName = sysName.share(SYS_NMLN);
-        nodeName.setString(0, "localhost"); /* Name within "some implementation-defined network" */
+        nodeName.setString(0, ZZUnameConfig.UnameValue.nodename); /* Name within "some implementation-defined network" */
 
         Pointer release = nodeName.share(SYS_NMLN);
-        release.setString(0, "1.0.0-unidbg"); /* Operating system release (e.g., "2.6.28") */
+        release.setString(0, ZZUnameConfig.UnameValue.release); /* Operating system release (e.g., "2.6.28") */
 
         Pointer version = release.share(SYS_NMLN);
-        version.setString(0, "#1 SMP PREEMPT Thu Apr 19 14:36:58 CST 2018"); /* Operating system version */
+        version.setString(0, ZZUnameConfig.UnameValue.version); /* Operating system version */
 
         Pointer machine = version.share(SYS_NMLN);
-        machine.setString(0, "armv8l"); /* Hardware identifier */
+        machine.setString(0, ZZUnameConfig.UnameValue.machineArm64); /* Hardware identifier */
 
         Pointer domainName = machine.share(SYS_NMLN);
-        domainName.setString(0, "localdomain"); /* NIS or YP domain name */
+        domainName.setString(0, ZZUnameConfig.UnameValue.domainname); /* NIS or YP domain name */
 
         return 0;
     }
@@ -1222,7 +1243,24 @@ public class ARM64SyscallHandler extends AndroidSyscallHandler {
         RegisterContext context = emulator.getContext();
         int clk_id = context.getIntArg(0) & 0x7;
         Pointer tp = context.getPointerArg(1);
-        long offset = clk_id == CLOCK_REALTIME ? currentTimeMillis() * 1000000L : System.nanoTime() - nanoTime;
+        //long offset = clk_id == CLOCK_REALTIME ? currentTimeMillis() * 1000000L : System.nanoTime() - nanoTime;
+
+
+        //通过开关固定时间戳
+        long currentTimeMillis = 0;
+        long nanoTimeDiff = 0;
+        if(ZZFixConfig.fix_clock_gettime) {
+            currentTimeMillis = ZZFixConfig.curTime;
+            nanoTimeDiff = 349876950504300L - 349787032319900L;
+        } else {
+            currentTimeMillis = System.currentTimeMillis();
+            nanoTimeDiff = System.nanoTime() - nanoTime;
+        }
+        long offset = clk_id == CLOCK_REALTIME ? currentTimeMillis * 1000000L : nanoTimeDiff;
+
+
+
+
         long tv_sec = offset / 1000000000L;
         long tv_nsec = offset % 1000000000L;
         if (log.isDebugEnabled()) {
