@@ -1,9 +1,15 @@
 package zz.base;
 
 import com.github.unidbg.AndroidEmulator;
+import com.github.unidbg.Emulator;
 import com.github.unidbg.Module;
 import com.github.unidbg.ModuleListener;
+import com.github.unidbg.arm.backend.Backend;
+import com.github.unidbg.arm.backend.CodeHook;
+import com.github.unidbg.arm.backend.UnHook;
 import com.github.unidbg.arm.backend.Unicorn2Factory;
+
+import com.github.unidbg.debugger.FunctionCallListener;
 import com.github.unidbg.file.IOResolver;
 import com.github.unidbg.file.linux.AndroidFileIO;
 import com.github.unidbg.linux.ARM32SyscallHandler;
@@ -24,6 +30,8 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 
+
+
 import java.io.*;
 import java.util.List;
 
@@ -38,7 +46,9 @@ public class BaseJni extends AbstractJni {
     public String soName;               //so的名字，掐头趣味，例如: libSinger.so，则传入Singer
     public String clsName;              //接口类
 
+
     //================= 扩展配置 ===========================
+    public boolean traceJNIOnloadFlag = false;                  //是否trace JNIOnload
     public boolean loadVirtualModuleFlag = false;               //是否需要加载虚拟Module
     public List<String> dependlibraryList = null;               //依赖库列表
     public List<IOResolver<AndroidFileIO>> ioResolvers = null;  //ioResolvers列表
@@ -105,9 +115,19 @@ public class BaseJni extends AbstractJni {
         //6.获取DvmClass
         DalvikModule dm = vm.loadLibrary(soName, true);
         module = dm.getModule();
+
+        if(traceJNIOnloadFlag) {
+            trace_JNI_Onload();
+        }
         dm.callJNI_OnLoad(emulator);
         nativeAPI = vm.resolveClass(clsName);
 
+    }
+
+    public void trace_JNI_Onload() {
+        String traceFile = rootPath() + "/trace/JNI_OnLoad_trace.log";
+        PrintStream traceStream = createTraceStream(traceFile);
+        emulator.traceCode(module.base, module.base + module.size).setRedirect(traceStream);
     }
 
 
@@ -148,6 +168,7 @@ public class BaseJni extends AbstractJni {
 
 
     public String rootPath() {
+
         return String.format("%s/%s", "unidbg-android/src/test/java/zz/app", projectName);
     }
 
@@ -155,6 +176,7 @@ public class BaseJni extends AbstractJni {
         File file = new File(filePath);
         try {
             //如果文件已存在，则先删除。
+            createDirectories(file.getParentFile());
             if (file.exists()) {
                 file.delete();
             }
@@ -164,6 +186,27 @@ public class BaseJni extends AbstractJni {
         } catch (IOException e) {
             System.out.println(filePath + " 文件创建失败。");
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * 递归创建目录（包括所有不存在的父目录）
+     * @param dir 要创建的目录
+     */
+    private static void createDirectories(File dir) {
+        if (dir == null) {
+            return; // 如果传入的目录为null，则返回（比如文件没有父目录）
+        }
+        if (dir.exists()) {
+            return; // 如果目录已存在，直接返回
+        }
+        // 先递归创建父目录
+        createDirectories(dir.getParentFile());
+        // 然后创建当前目录
+        if (dir.mkdir()) {
+            System.out.println("目录创建成功: " + dir.getPath());
+        } else {
+            System.out.println("目录创建失败: " + dir.getPath());
         }
     }
 
@@ -179,33 +222,70 @@ public class BaseJni extends AbstractJni {
         Logger.getLogger(cls).setLevel(Level.DEBUG);
     }
 
-    public void enableNormalDebugLog() {
+    public void enableDebug() {
         if (is64Bit) {
+            //Logger.getLogger(DalvikVM64.class).setLevel(Level.DEBUG);
             Logger.getLogger(ARM64SyscallHandler.class).setLevel(Level.DEBUG);
         } else {
+            //Logger.getLogger(DalvikVM.class).setLevel(Level.DEBUG);
             Logger.getLogger(ARM32SyscallHandler.class).setLevel(Level.DEBUG);
         }
         Logger.getLogger(AndroidSyscallHandler.class).setLevel(Level.DEBUG);
+    }
+
+
+    // 打印调用栈
+    public void printCallStack() {
+        System.out.println("call stack ==>");
+        emulator.getUnwinder().unwind();
     }
 
     //========================================= patch指令 ==============================================
 
 
     /**
-     patch指令
-     例如：asmCode = "subs r0, r2, r3";
+     patch指令:
+     offset_addr: 偏移地址
+     asmCode： 汇编指令
+     例如：asmCode = "subs r0, r2, r3";  patch(0x1000, asmCode);
      */
-    public void patch(long addr, String asmCode) {
+    public void patch(long offset_addr, String asmCode) {
 
         KeystoneArchitecture arch = KeystoneArchitecture.Arm;
         if (is64Bit) {
             arch = KeystoneArchitecture.Arm64;
         }
 
-        UnidbgPointer pointer = UnidbgPointer.pointer(this.emulator, addr);
+        UnidbgPointer pointer = UnidbgPointer.pointer(this.emulator, module.base + offset_addr);
         Keystone keystone = new Keystone(arch, KeystoneMode.LittleEndian);
         byte[] codeBytes = keystone.assemble(asmCode).getMachineCode();
         pointer.write(codeBytes);
+    }
+
+
+    public void nop64(long start_offset_addr,  long count) {
+
+        KeystoneArchitecture arch = arch = KeystoneArchitecture.Arm64;
+        UnidbgPointer pointer = UnidbgPointer.pointer(this.emulator, module.base + start_offset_addr);
+        Keystone keystone = new Keystone(arch, KeystoneMode.LittleEndian);
+        String asm = "NOP";
+        byte[] codeBytes = keystone.assemble(asm).getMachineCode();
+        codeBytes = copyByteArrayNTimes(codeBytes, (int)count);
+        pointer.write(codeBytes);
+    }
+
+
+    public static byte[] copyByteArrayNTimes(byte[] source, int n) {
+        if (source == null || n <= 0) return new byte[0]; // 边界处理
+
+        int sourceLength = source.length;
+        byte[] result = new byte[sourceLength * n]; // 目标数组长度 = 原数组长度 × N
+
+        for (int i = 0; i < n; i++) {
+            int destPos = i * sourceLength; // 当前复制位置
+            System.arraycopy(source, 0, result, destPos, sourceLength);
+        }
+        return result;
     }
 
     //========================================= 断点 ========================================================
@@ -227,8 +307,8 @@ public class BaseJni extends AbstractJni {
 
     /**
      使用：
-     String traceFile = appInfo.outputfs + "/xhs_shield_tracewrite.log";
-     PrintStream traceStream = Utils.createTracePrintStream(traceFile);
+     String traceFile = rootPath() + "/trace/moji_func_trace.log";
+     PrintStream traceStream = createTraceStream(traceFile);
 
      emulator.traceCode(module.base, module.base + module.size).setRedirect(traceStream);
      emulator.traceRead().setRedirect(traceStream);
@@ -246,6 +326,51 @@ public class BaseJni extends AbstractJni {
     }
 
 
+    static String prefix = "";
+
+    /**
+     使用：
+     String traceFile = rootPath() + "/trace/moji_func_trace.log";
+     PrintStream traceStream = createTraceStream(traceFile);
+     traceFunction(traceStream);
+     */
+    public void traceFunction(PrintStream traceStream) {
+
+        emulator.attach().traceFunctionCall(module, new FunctionCallListener() {
+            @Override
+            public void onCall(Emulator<?> emulator, long callerAddress, long functionAddress) {
+                prefix += "  ";
+                traceStream.println("\n" + prefix + "|--" + " start caller=" + UnidbgPointer.pointer(emulator, callerAddress) + ", function=" + UnidbgPointer.pointer(emulator, functionAddress));
+            }
+            @Override
+            public void postCall(Emulator<?> emulator, long callerAddress, long functionAddress, Number[] args) {
+                prefix = prefix.substring(0, prefix.length() - 2);
+                //traceStream.println("end caller=" + UnidbgPointer.pointer(emulator, callerAddress) + ", function=" + UnidbgPointer.pointer(emulator, functionAddress));
+            }
+        });
+    }
+
+
+    public void traceCount() {
+
+        emulator.getBackend().hook_add_new(new CodeHook() {
+            int count = 0;
+            @Override
+            public void hook(Backend backend, long address, int size, Object user) {
+                count += 1;
+                System.out.println(count);
+            }
+
+            @Override
+            public void onAttach(UnHook unHook) {
+
+            }
+
+            @Override
+            public void detach() {
+            }
+        }, module.base, module.base+ module.size, null);
+    }
 
 
 

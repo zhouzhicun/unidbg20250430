@@ -7,6 +7,7 @@ import com.github.unidbg.linux.android.dvm.*;
 
 import zz.base.BaseJni;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +49,7 @@ public class moji extends BaseJni {
     }
 
     public static void main(String[] args) {
+
         moji test = new moji();
         System.err.println("sign = " + test.call_sign());
     }
@@ -55,6 +57,13 @@ public class moji extends BaseJni {
     public String call_sign() {
 
         System.err.println("开始 call sign: ");
+
+        //traceCount();
+
+        String traceFile = rootPath() + "/trace/moji_func_trace.log";
+        PrintStream traceStream = createTraceStream(traceFile);
+        traceFunction(traceStream);
+
 
         List<Object> params = new ArrayList<>(10);
         params.add(vm.getJNIEnv());
