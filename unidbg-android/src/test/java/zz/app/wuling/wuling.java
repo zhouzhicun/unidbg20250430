@@ -1,4 +1,4 @@
-package zz.app.llb;
+package zz.app.wuling;
 
 import com.github.unidbg.linux.android.dvm.*;
 import zz.base.BaseJni;
@@ -8,9 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class llb extends BaseJni {
+public class wuling extends BaseJni {
 
-    llb() {
+    wuling() {
 
 //        //================= 基本配置 ===========================
 //        public boolean is64Bit;             //是否ARM64     //项目名
@@ -22,7 +22,7 @@ public class llb extends BaseJni {
 
         //1.App初始化
         this.is64Bit = true;
-        this.projectName = "llb";
+        this.projectName = "wuling";
         this.apkName = "wuling_V8.2.12.apk";
         this.bundleName = "com.cloudy.linglingbang";
         this.soName = "encrypt";
@@ -48,7 +48,7 @@ public class llb extends BaseJni {
 
     public static void main(String[] args) {
 
-        llb test = new llb();
+        zz.app.wuling.wuling test = new zz.app.wuling.wuling();
 //        System.err.println("sd = " + test.call_checkcode());
         System.err.println("decrypt result = " + test.call_decrypt());
     }

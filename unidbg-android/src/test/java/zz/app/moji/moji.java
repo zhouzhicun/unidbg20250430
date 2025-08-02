@@ -1,8 +1,5 @@
-package zz.app.example;
+package zz.app.moji;
 
-import com.github.unidbg.Emulator;
-import com.github.unidbg.Module;
-import com.github.unidbg.ModuleListener;
 import com.github.unidbg.linux.android.dvm.*;
 
 import zz.base.BaseJni;
