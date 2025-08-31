@@ -52,5 +52,10 @@
             <artifactId>demumble</artifactId>
             <version>1.0.4</version>
         </dependency>
+        <dependency>
+            <groupId>com.squareup.okio</groupId>
+            <artifactId>okio</artifactId>
+            <version>3.6.0</version>
+        </dependency>
     </dependencies>
 </project>

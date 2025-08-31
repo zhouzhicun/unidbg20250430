@@ -9,6 +9,7 @@ import com.github.unidbg.arm.backend.CodeHook;
 import com.github.unidbg.arm.backend.UnHook;
 import com.github.unidbg.arm.backend.Unicorn2Factory;
 
+import com.github.unidbg.debugger.BreakPointCallback;
 import com.github.unidbg.debugger.FunctionCallListener;
 import com.github.unidbg.file.IOResolver;
 import com.github.unidbg.file.linux.AndroidFileIO;
@@ -293,13 +294,15 @@ public class BaseJni extends AbstractJni {
     /**
      * 添加断点
      */
-    public void addBreakpoint(long address) {
+    public void addBreakpoint(long offsetAddr) {
+        addBreakpoint(offsetAddr, null);
+    }
 
+    public void addBreakpoint(long offsetAddr, BreakPointCallback callback) {
         if (!is64Bit) {
-            address += 1;
+            offsetAddr += 1;
         }
-        emulator.attach().addBreakPoint(module.base + address);
-
+        emulator.attach().addBreakPoint(module.base + offsetAddr, callback);
     }
 
 
@@ -344,7 +347,7 @@ public class BaseJni extends AbstractJni {
             }
             @Override
             public void postCall(Emulator<?> emulator, long callerAddress, long functionAddress, Number[] args) {
-                prefix = prefix.substring(0, prefix.length() - 2);
+                //prefix = prefix.substring(0, prefix.length() - 2);
                 //traceStream.println("end caller=" + UnidbgPointer.pointer(emulator, callerAddress) + ", function=" + UnidbgPointer.pointer(emulator, functionAddress));
             }
         });

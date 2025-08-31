@@ -1,9 +1,16 @@
 package zz.app.wuling;
 
+import com.github.unidbg.Emulator;
+import com.github.unidbg.debugger.BreakPointCallback;
 import com.github.unidbg.linux.android.dvm.*;
+import com.github.unidbg.memory.MemoryBlock;
+import com.github.unidbg.pointer.UnidbgPointer;
+import unicorn.Arm64Const;
+import unicorn.ArmConst;
 import zz.base.BaseJni;
 
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,8 +56,8 @@ public class wuling extends BaseJni {
     public static void main(String[] args) {
 
         zz.app.wuling.wuling test = new zz.app.wuling.wuling();
-//        System.err.println("sd = " + test.call_checkcode());
-        System.err.println("decrypt result = " + test.call_decrypt());
+        System.err.println("sd = " + test.call_checkcode());
+//        System.err.println("decrypt result = " + test.call_decrypt());
     }
 
 
@@ -59,6 +66,10 @@ public class wuling extends BaseJni {
     public String call_checkcode() {
 
         System.err.println("开始 call checkcode: ");
+
+        trace_checkcode();
+        addBreakpoint_checkcode();
+        patch_checkcode();
 
         List<Object> params = new ArrayList<>(10);
         params.add(vm.getJNIEnv());
@@ -80,11 +91,76 @@ public class wuling extends BaseJni {
     }
 
 
+    public void trace_checkcode() {
+
+        //1.trace指令总数
+        //traceCount();
+
+        //2.trace指令或函数或内存读写
+        String traceFile = rootPath() + "/trace/checkcode_func_trace.log";
+        PrintStream traceStream = createTraceStream(traceFile);
+//        emulator.traceCode(module.base, module.base + module.size).setRedirect(traceStream);
+//        traceFunction(traceStream);
+//        emulator.traceWrite(0x12563000, 0x12563000 + 0xc0).setRedirect(traceStream);
+    }
+
+    public void addBreakpoint_checkcode() {
+        //addBreakpoint(0xA0A8);
+        //addBreakpoint(0xA134);
+        addBreakpoint(0xA038);
+
+
+    }
+
+    public void patch_checkcode() {
+
+    }
+
+
+    /**
+     * 通过下断点的方式，修改入参~~
+     */
+    public void modify_params() {
+
+        emulator.attach().addBreakPoint(module.base+0x5A34, new BreakPointCallback() {
+            @Override
+            public boolean onHit(Emulator<?> emulator, long address) {
+
+                String fakeInput = "hello";
+                int length = fakeInput.length();
+                MemoryBlock fakeInputBlock = emulator.getMemory().malloc(length, true);
+                fakeInputBlock.getPointer().write(fakeInput.getBytes(StandardCharsets.UTF_8));
+
+                // 修改x0(ARM64)为指向新字符串的新指针
+                emulator.getBackend().reg_write(Arm64Const.UC_ARM64_REG_X0, fakeInputBlock.getPointer().peer);
+                return true;
+            }
+        });
+    }
+
+    public void attackDFA() {
+
+        emulator.attach().addBreakPoint(module.base+0x4E2A, new BreakPointCallback() {
+            int round = 0;
+            UnidbgPointer statePointer = UnidbgPointer.pointer(emulator, 0xbffff458L);
+            @Override
+            public boolean onHit(Emulator<?> emulator, long address) {
+                round += 1;
+                System.out.println("round:"+round);
+                if (round % 9 == 0) {
+                    //statePointer.setByte(randInt(0, 15), (byte) randInt(0, 0xff));
+                }
+                return true;    //返回true 就不会在控制台断住
+            }
+        });
+    }
+
+
     public String call_decrypt() {
 
-        trace();
-//        addBreakpoint();
-        patch();
+        trace_decrypt();
+        addBreakpoint_decrypt();
+        patch_decrypt();
 
         List<Object> params = new ArrayList<>(10);
         params.add(vm.getJNIEnv());
@@ -101,7 +177,7 @@ public class wuling extends BaseJni {
 
     }
 
-    public void trace() {
+    public void trace_decrypt() {
 
         //traceCount();
         String traceFile = rootPath() + "/trace/decrypt_func_trace.log";
@@ -110,12 +186,12 @@ public class wuling extends BaseJni {
         traceFunction(traceStream);
     }
 
-    public void addBreakpoint() {
+    public void addBreakpoint_decrypt() {
 //        addBreakpoint(0x2C58C);
 //        addBreakpoint(0x2C598);
     }
 
-    public void patch() {
+    public void patch_decrypt() {
 //        nop64(0x2C578, (0x2C75C - 0x2C578) / 4);
 //        nop64(0x2C880, 1);
 
