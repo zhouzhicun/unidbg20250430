@@ -347,7 +347,7 @@ public class BaseJni extends AbstractJni {
             }
             @Override
             public void postCall(Emulator<?> emulator, long callerAddress, long functionAddress, Number[] args) {
-                //prefix = prefix.substring(0, prefix.length() - 2);
+                prefix = prefix.substring(0, prefix.length() - 2);
                 //traceStream.println("end caller=" + UnidbgPointer.pointer(emulator, callerAddress) + ", function=" + UnidbgPointer.pointer(emulator, functionAddress));
             }
         });

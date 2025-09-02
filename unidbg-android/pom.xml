@@ -58,5 +58,12 @@
             <artifactId>okio</artifactId>
             <version>3.6.0</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.73</version> <!-- 也可根据需要选择其他版本 -->
+        </dependency>
+
     </dependencies>
 </project>

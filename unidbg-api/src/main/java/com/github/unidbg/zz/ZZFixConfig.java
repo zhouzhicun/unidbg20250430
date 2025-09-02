@@ -5,7 +5,7 @@ public class ZZFixConfig {
 
     //固定值
     public static long curTime = 1719919836983L;
-    public static int pid = 0x5000;
+    public static int pid = 0x5010;
 
     //固定开关
     public static boolean fix_gettimeofday = true;

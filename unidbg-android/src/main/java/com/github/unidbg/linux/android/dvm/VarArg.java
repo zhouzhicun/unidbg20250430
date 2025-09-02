@@ -55,7 +55,7 @@ public abstract class VarArg {
     }
 
 
-    final String formatArgs() {
+    public final String formatArgs() {
         Shorty[] shorties = method.decodeArgsShorty();
         List<String> format = new ArrayList<>(shorties.length);
         List<Object> args = new ArrayList<>(shorties.length);
